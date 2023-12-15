@@ -1,2 +1,2 @@
 # space-trex
-Collection of tools to analyze STARmap data + cloneIDs generated with Space-TREX
+Collection of tools to analyze STARmap data with cloneIDs generated with Space-TREX
