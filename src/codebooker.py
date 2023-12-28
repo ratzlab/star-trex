@@ -5,7 +5,8 @@ Creates and handles codebooks
 from starfish import Codebook
 import pandas as pd 
 import numpy as np 
-import os 
+import os
+from path_maker import path_checker
 
 
 def onebase_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds):
@@ -77,10 +78,10 @@ def create_codebook(
         - border_base: Base that borders the target_id, default: G
     """
     #1. Check if provided paths are correct
-    path_checker(code_path)
-    path_checker(key_path)
+    code_path = path_checker(code_path)
+    key_path = path_checker(key_path)
     if output_path:
-        path_checker(output_path, output=True)
+        output_path = path_checker(output_path)
 
     #2. Read input files
     rawcode_df = pd.read_csv(code_path, names=["target_name", "target_id"], header=None)
@@ -110,22 +111,3 @@ def load_codebook(codebook_path):
     """
     codebook = Codebook.open_json(codebook_path)
     return codebook
-
-
-def path_checker(path, output=False):
-    """
-    Checks if a given path is a string, if it leads to a file and if the file already exists
-    """
-    # Check if path is a string
-    if not isinstance(path, str):
-        raise ValueError(f"The path '{path}' must be provided as string.")
-    
-     # Check if path is a directory (folder)
-    if os.path.isdir(path):
-        raise ValueError(f"The output path '{path}' leads to a folder, not a file.")
-
-    # Check if the path already exists
-    if output:
-        if os.path.exists(path):
-            raise FileNotFoundError(f"The output path '{path}' already exists.")
-    return True
