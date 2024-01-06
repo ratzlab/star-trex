@@ -9,7 +9,7 @@ import tifffile
 from tifffile import TiffFile
 import xml.etree.ElementTree as ET
 import pandas as pd
-from path_handler import *
+from src.path_handler import *
 
 
 def process_tiff(input_path, output_path, image_type="primary", extension=None, fov=0):
@@ -92,6 +92,6 @@ def process_tiff(input_path, output_path, image_type="primary", extension=None, 
                     print(f"Saved: {full_output_path}")
     
     #Save coordinates as csv file
-    for col in ["fov", "round", "ch"]:
+    for col in ["fov", "round", "ch", "zplane"]:
         coord_df[col] = coord_df[col].astype(int)                
     coord_df.to_csv(output_path / "coordinates.csv", index=False)

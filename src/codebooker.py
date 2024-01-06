@@ -6,7 +6,7 @@ from starfish import Codebook
 import pandas as pd 
 import numpy as np 
 import os
-from path_handler import path_checker
+from src.path_handler import path_checker
 
 
 def onebase_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds):

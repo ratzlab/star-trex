@@ -3,7 +3,6 @@ Functions to handle paths
 """
 
 from pathlib import Path
-import os
 
 
 def path_maker(path_str):
@@ -42,23 +41,28 @@ def path_checker(path_str, exists=True, directory=True, json=False):
 def get_files_in_path(folder_path, extension=None):
     """
     Extracts all file paths OR all file paths with a given extension
-    from the input folder.
+    from the input folder and create an alphabetically/numerically
+    sorted list of files.
     """
 
     files_list = []
-    for file in os.listdir(folder_path):
-        if extension:
-            if file.endswith(extension):
-                files_list.append(os.path.join(folder_path, file))
-        else:
-            files_list.append(os.path.join(folder_path, file))
-    return files_list
+    for file_path in folder_path.iterdir():
+        # Check if the file has the specified extension
+        if extension and not file_path.suffix == extension:
+            continue
+
+        files_list.append(file_path)
+
+    # Sort the files_list based on path names
+    files_list_sorted = sorted(files_list)
+
+    return files_list_sorted
 
 
 def get_folders_in_path(input_path):
     """
-    Extracts all folder paths from the input folder.
+    Extracts all folder paths from the input folder and sorts them alphabetically/numerically.
     """
 
-    folder_paths = [input_path / folder for folder in input_path.iterdir() if folder.is_dir()]
+    folder_paths = sorted([input_path / folder for folder in input_path.iterdir() if folder.is_dir()])
     return folder_paths
