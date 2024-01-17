@@ -132,8 +132,6 @@ def create_codebook(
         rawcode_df = complementary_geneid(rawcode_df)
     if trim:
         rawcode_df = trim_geneid(rawcode_df, trim)
-        #IS THIS TRUE???
-        n_rounds = trim
     
     #4. Create a numpy array from target_ids and code_key
     codebook_np = np.zeros((len(rawcode_df),n_rounds,n_channels))
