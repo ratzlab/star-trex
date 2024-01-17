@@ -38,6 +38,26 @@ def twobases_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds, border_bas
     return codebook_np
 
 
+def inverse_geneid(rawcode_df):
+    """
+    Inverses the geneID sequence, e.g. ACGTC to CTGCA. The former is 
+    usually the probe sequence, the latter the sequence read from the
+    spots
+    """
+    rawcode_df["target_id"] = rawcode_df["target_id"].apply(lambda x: x[::-1])
+    return rawcode_df
+
+
+def trim_geneid(rawcode_df, trim):
+    """
+    Trims the geneID sequence, e.g. ACGTC to AG. This is useful when
+    less rounds were sequenced than required to cover the whole geneID.
+    """
+    rawcode_df["target_id"] = rawcode_df["target_id"].apply(lambda x: x[:trim])
+    return rawcode_df
+
+
+
 def store_codebook(codebook, output_path):
     """
     Stores codebook as JSON file
@@ -53,7 +73,9 @@ def create_codebook(
         n_rounds: int,
         output_path=None,
         two_bases_code=False,
-        border_base="G"
+        border_base="G",
+        inverse=True,
+        trim=None
 ):
     """
     Returns a starfish Codebook (starfish.core.codebook.codebook) from an input CSV file.
@@ -76,6 +98,10 @@ def create_codebook(
         - output_path (optional): path to output location of JSON file, default: None
         - two_bases_code: Boolean, if True a two-bases key will be used, default: False
         - border_base: Base that borders the target_id, default: G
+        - inverse: If true, inverses the geneID sequence before creating the codebook,
+        default: True
+        - trim: If int provided, trims geneIDs to provided length. If None, no trimming 
+        is performed. Default: None
     """
     #1. Check if provided paths are correct
     code_path = path_checker(code_path, directory=False)
@@ -85,22 +111,30 @@ def create_codebook(
     rawcode_df = pd.read_csv(code_path, names=["target_name", "target_id"], header=None)
     codekey_df = pd.read_csv(key_path, names=["base", "channel"], header=None)
     codekey_dict = pd.Series(codekey_df.channel.values,index=codekey_df.base).to_dict()
+
+    #3. Optionally: Inverse and trim geneID sequence 
+    if inverse:
+        rawcode_df = inverse_geneid(rawcode_df)
+    if trim:
+        rawcode_df = trim_geneid(rawcode_df, trim)
+        #IS THIS TRUE???
+        n_rounds = trim
     
-    #3. Create a numpy array from target_ids and code_key
+    #4. Create a numpy array from target_ids and code_key
     codebook_np = np.zeros((len(rawcode_df),n_rounds,n_channels))
     if two_bases_code:
         codebook_np = twobases_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds, border_base)
     else:
         codebook_np = onebase_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds)
 
-    #4. Transform into starfish Codebook format
+    #5. Transform into starfish Codebook format
     codebook = Codebook.from_numpy(rawcode_df["target_name"], n_rounds, n_channels, data=codebook_np)
     
-    #5. Optional: Store Codebook as JSON file
+    #6. Optional: Store Codebook as JSON file
     if output_path:
         store_codebook(codebook, output_path)
 
-    return codebook
+    return codebook, rawcode_df
 
 
 def load_codebook(codebook_path):
