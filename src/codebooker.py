@@ -6,7 +6,7 @@ from starfish import Codebook
 import pandas as pd 
 import numpy as np 
 import os
-from path_maker import path_checker
+from src.path_handler import path_checker
 
 
 def onebase_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds):
@@ -42,8 +42,8 @@ def store_codebook(codebook, output_path):
     """
     Stores codebook as JSON file
     """
-    path_checker(output_path, output=True)
-    codebook.to_json(output_path)
+    output_path = path_checker(output_path, exists=False, directory=False, json=True)
+    codebook.to_json(str(output_path))
 
 
 def create_codebook(
@@ -78,10 +78,8 @@ def create_codebook(
         - border_base: Base that borders the target_id, default: G
     """
     #1. Check if provided paths are correct
-    code_path = path_checker(code_path)
-    key_path = path_checker(key_path)
-    if output_path:
-        output_path = path_checker(output_path)
+    code_path = path_checker(code_path, directory=False)
+    key_path = path_checker(key_path, directory=False)
 
     #2. Read input files
     rawcode_df = pd.read_csv(code_path, names=["target_name", "target_id"], header=None)
@@ -109,5 +107,7 @@ def load_codebook(codebook_path):
     """
     Loads a codebook from a JSON file
     """
-    codebook = Codebook.open_json(codebook_path)
+
+    codebook_path = path_checker(codebook_path, directory=False)
+    codebook = Codebook.open_json(str(codebook_path))
     return codebook
