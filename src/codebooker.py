@@ -57,6 +57,14 @@ def trim_geneid(rawcode_df, trim):
     return rawcode_df
 
 
+def complementary_geneid(rawcode_df):
+    """
+    Creates the complementary geneID sequence, e.g. ACGTC to TGCAG. 
+    """
+    comp_dict = {"A" : "T", "T" : "A", "C" : "G", "G" : "C"} 
+    rawcode_df["target_id"] = rawcode_df["target_id"].apply(lambda x: ''.join(comp_dict[letter] for letter in x))
+    return rawcode_df
+
 
 def store_codebook(codebook, output_path):
     """
@@ -75,7 +83,8 @@ def create_codebook(
         two_bases_code=False,
         border_base="G",
         inverse=True,
-        trim=None
+        trim=None,
+        complementary=False
 ):
     """
     Returns a starfish Codebook (starfish.core.codebook.codebook) from an input CSV file.
@@ -102,6 +111,10 @@ def create_codebook(
         default: True
         - trim: If int provided, trims geneIDs to provided length. If None, no trimming 
         is performed. Default: None
+        - complementary: If true, creates the complementary geneID sequence before
+        creating the codebook
+    Return:
+        - codebook
     """
     #1. Check if provided paths are correct
     code_path = path_checker(code_path, directory=False)
@@ -112,9 +125,11 @@ def create_codebook(
     codekey_df = pd.read_csv(key_path, names=["base", "channel"], header=None)
     codekey_dict = pd.Series(codekey_df.channel.values,index=codekey_df.base).to_dict()
 
-    #3. Optionally: Inverse and trim geneID sequence 
+    #3. Optionally: Inverse, and trim geneID sequence or create complementary sequence
     if inverse:
         rawcode_df = inverse_geneid(rawcode_df)
+    if complementary:
+        rawcode_df = complementary_geneid(rawcode_df)
     if trim:
         rawcode_df = trim_geneid(rawcode_df, trim)
         #IS THIS TRUE???
