@@ -26,9 +26,9 @@ def twobases_encoder(codebook_np, codekey_dict, rawcode_df, n_rounds, border_bas
     for i in range(len(rawcode_df)):
         for j in range(n_rounds):
             #Extract code snippet
-            if j == 0: 
+            if border_base and j == 0: 
                 snippet = border_base + rawcode_df["target_id"][i][j] 
-            elif j == n_rounds-1:
+            elif border_base and j == n_rounds-1:
                 snippet = rawcode_df["target_id"][i][j-1] + border_base
             else:
                 snippet = rawcode_df["target_id"][i][j-1] + rawcode_df["target_id"][i][j]
@@ -81,7 +81,7 @@ def create_codebook(
         n_rounds: int,
         output_path=None,
         two_bases_code=False,
-        border_base="G",
+        border_base="C",
         inverse=True,
         trim=None,
         complementary=False
@@ -106,7 +106,7 @@ def create_codebook(
         - n_rounds: Number of rounds
         - output_path (optional): path to output location of JSON file, default: None
         - two_bases_code: Boolean, if True a two-bases key will be used, default: False
-        - border_base: Base that borders the target_id, default: G
+        - border_base: Base that borders the target_id, default: C
         - inverse: If true, inverses the geneID sequence before creating the codebook,
         default: True
         - trim: If int provided, trims geneIDs to provided length. If None, no trimming 
