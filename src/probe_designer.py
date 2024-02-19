@@ -9,12 +9,41 @@ import random
 
 from src.path_handler import path_checker
 
-def base_randomizer():
+def create_geneid(length, existing):
     '''
-    Returns a random base
+    Creates a random geneID sequence and checks if this
+    sequence already exists in the provided list of existing
+    sequences
+    '''
+    geneid = ''
+    #Checks if combinatorial space is not exhausted
+    if len(existing) < (4**length - 4):
+        exists = False
+        #starts a while loop that is only finished if a new seq is created
+        while exists == False:
+            #creates a random seq of length length
+            geneid = base_randomizer(length)
+            if len(set(geneid)) == 1:
+                continue
+            if not geneid in existing:
+                existing.append(geneid)
+                #if seq does not exist yet while loop is broken
+                exists = True
+    else:
+        raise Exception(f"The combinatorial space of {4**length} geneID combinations is exhausted")
+
+    return geneid, existing
+
+
+def base_randomizer(length = 1):
+    '''
+    Returns a random base sequence with defined length
     '''
     bases = ['A', 'C', 'G', 'T']
-    return random.choice(bases)
+    seq = ''
+    for i in range(length):
+        seq = seq + random.choice(bases)
+    return seq
 
 
 def primer_builder(primer, middle_var, end_const_primer):
@@ -33,20 +62,60 @@ def padlock_builder(padlock, start_var, middle_const, genenid, end_const_padlock
     return full_padlock
 
 
-def probe_designer(genes_path, geneIDs_path, probedb_path, output_path, middle_const = "AATTATTAC", 
-                   end_const_padlock = "CATACACTAAAGATA", end_const_primer = "TATCTT"):
+def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, middle_const = "AATTATTAC", 
+                   end_const_padlock = "CATACACTAAAGATA", end_const_primer = "TATCTT", create_geneids= False):
     """
     Creates for a given list of genes primer and padlock seqs
     based on hybridization seqs provided by a database and
-    several variable and constant linkers
+    several variable and constant linkers. Can create random
+    geneIDs excluding already existing and homopolymers.
 
-    Input:
-    - 
+    Input: 
+        - genes_path: Path to CSV file with list of genes to be used for probe design. 
+        Expects the following format with no header:
+        gene1
+        gene2
+        ...
+        - probedb_path: Path to CSV file that contains the database with calculated
+        target sequences within the transcriptome. While format is not fully specified,
+        it must have a header row and one column with name "primer" for the primer target
+        sequences and one column named "padlock" for the padlock target sequence
+        ...     primer   ...   padlock ...
+                pr_seq1        pa_seq1
+                pr_seq2        pa_seq2
+                ...            ...
+        - output_file: Path to desired location and name of the output file, e.g. path/to/probe_df.csv
+        - geneids_path: Path to a CSV file that provides one geneID for each gene. Either these geneIDs
+        will be used to create the probes, OR if create_geneids = True, it will avoid these geneIDs as
+        they will be considered as already existing. If None is provided and create_geneids not True,
+        an error will be thrown. While format is not fully specified, it must have a header row and one 
+        column with name "gene" for the gene symbol and one column named "geneid" for the geneID:
+        ...     gene   ...   geneID ...
+                gene1        geneID1
+                gene2        geneID2
+                ...            ...
+        Default: None.
+        - middle_const: Sequence of the middle constant in the padlock probe. Default: AATTATTAC (Shi
+        et al.)
+        - end_const_padlock: Sequence of the end constant in the padlock probe. Default: CATACACTAAAGATA
+        (Shi et al.)
+        - end_const_primer: Sequence of the end constant in the primer probe. Default: TATCTT (Shi et al.)
+        - create_geneids: Can either be set to False, then the gene:geneID combinations need to be 
+        provided with the geneids_path parameter. Or can be the length of the random, non homopolymeric
+        geneIDs to be created. Cannot be set to True (writing a number is equivalent to setting this parameter
+        to True). If create_geneids = int and a gene:geneID assignment given with geneids_path paramter, then
+        those geneIDs will be excluded from the creation of random geneIDs.
+    
+    Return:
+        - A CSV file with genes, geneIDs, probeIDs and probe sequences
     """
     #Test paths
     genes_path = path_checker(genes_path, directory=False)
-    geneIDs_path = path_checker(geneIDs_path, directory=False)
+    if geneids_path:
+        geneids_path = path_checker(geneids_path, directory=False)
     probedb_path = path_checker(probedb_path, directory=False)
+
+    geneids = []
 
     #Extract genes
     genes = pd.read_csv(genes_path, names = ["genes"], header=None)["genes"].tolist()
@@ -54,35 +123,61 @@ def probe_designer(genes_path, geneIDs_path, probedb_path, output_path, middle_c
     #Load the probe database
     probedb = pd.read_csv(probedb_path, header=0)
 
-    #Extract geneIDs, primer seqs and padlock seqs and saves full primer/padlock seq as csv
-    geneids_df = pd.read_csv(geneIDs_path, names = ["genes", "ids"])
-    geneids_dict = dict(zip(geneids_df.genes, geneids_df.ids))
+    #Extracts existing geneIDs
+    if geneids_path:
+        geneids_df = pd.read_csv(geneids_path)
+        geneids_dict = dict(zip(geneids_df.genes, geneids_df.geneids))
+        geneids = list(geneids_dict.values())
+    elif not create_geneids:
+        #If no existing geneids given and create_geneids = False, raises exception
+        raise Exception("GeneIDs either need to be provided or the create_geneids parameter set to the"
+                        "length of the geneID")
+    
+    #Extracts a list of existing genes in the target seq database
     dbgenes = probedb["Gene"].values
-    lost_genes = []
+    #Prepares a dictionary for creating complementary sequences
     comp_dict = {"A" : "T", "T" : "A", "C" : "G", "G" : "C"} 
-
+    #Prepares the final dataframe to safe the created probe sequences
     final_df = pd.DataFrame(columns = ["gene", "geneID", "padlockID", "padlock_seq", "primerID", "primer_seq"])
 
+    #Loops through all genes of interest
     for gene in genes:
-        start_var = "A" + base_randomizer() + base_randomizer() + base_randomizer() + "TA"
-        middle_var = ''.join(comp_dict[letter] for letter in start_var[::-1])
-
-        if not gene in geneids_dict.keys() or not gene in dbgenes:
-            lost_genes.append(gene)
+        if not gene in dbgenes:
+            #If the gene is not in the target database it will be skipped
             print(f"Gene {gene} is not in at least one of the databases and was skipped")
         else:
-            geneid = geneids_dict[gene]
-            counter = 0
-            for i in range(len(dbgenes)):
-                if dbgenes[i] == gene:
-                    counter += 1
-                    full_primer = primer_builder(probedb.iloc[i]['Primer'], middle_var, end_const_primer)
-                    full_padlock = padlock_builder(probedb.iloc[i]['Padlock'], start_var, middle_const, geneid, end_const_padlock)
-                    padlockID = gene + "_0" + str(counter)
-                    primerID = gene + "_1" + str(counter)
-                    final_df.loc[len(final_df)] = [gene, geneid, padlockID, full_padlock, primerID, full_primer]
+            if not gene in geneids_dict.keys() and not create_geneids:
+                #if a gene does not have a provided geneID and create_geneid = False, gene will
+                #skipped
+                print(f"Gene {gene} is not in at least one of the databases and was skipped")
+            else:
+                #creates the start variable with format AXXXTA
+                start_var = "A" + base_randomizer(3) + "TA"
+                #creates the middle variable as the reverse complementary seq of start_var
+                middle_var = ''.join(comp_dict[letter] for letter in start_var[::-1])
+                if create_geneids:
+                    #creates a random geneIDs (not homopolymer) that does not exist in geneids list
+                    geneid, geneids = create_geneid(create_geneids, geneids)
+                else:
+                    #extract the geneID assigned for gene from geneids dictionary
+                    geneid = geneids_dict[gene]
+                counter = 0
+                #Loops through all the genes from the target database, this is necessary since 
+                #a single gene can have several target seq
+                for i in range(len(dbgenes)):
+                    #if it finds a gene that is in the list of genes of interest
+                    if dbgenes[i] == gene:
+                        counter += 1
+                        #builds full primer and padlock probe sequences
+                        full_primer = primer_builder(probedb.iloc[i]['primer'], middle_var, end_const_primer)
+                        full_padlock = padlock_builder(probedb.iloc[i]['padlock'], start_var, middle_const, geneid, end_const_padlock)
+                        #builds the padlock and primer ID
+                        padlockID = gene + "_0" + str(counter)
+                        primerID = gene + "_1" + str(counter)
+                        #saves everything in the dataframe
+                        final_df.loc[len(final_df)] = [gene, geneid, padlockID, full_padlock, primerID, full_primer]
+    #outputs datafram to desired output location
     final_df.to_csv(output_path)
-    return final_df
 
     
 
