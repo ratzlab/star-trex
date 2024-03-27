@@ -90,7 +90,7 @@ def create_codebook(
     Returns a starfish Codebook (starfish.core.codebook.codebook) from an input CSV file.
     Optionally, the Codebook can be stored as JSON file.
 
-    Input: 
+    Parameters: 
         - code_path: Path to CSV file assigning each target (gene, cloneID) to one geneID.
         The file mus have the following format [target_name, target_id]:
         cloneID1,AGAAA

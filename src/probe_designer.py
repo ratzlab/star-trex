@@ -70,7 +70,7 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
     several variable and constant linkers. Can create random
     geneIDs excluding already existing and homopolymers.
 
-    Input: 
+    Parameters: 
         - genes_path: Path to CSV file with list of genes to be used for probe design. 
         Expects the following format with no header:
         gene1
