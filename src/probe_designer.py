@@ -80,9 +80,9 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
         target sequences within the transcriptome. While format is not fully specified,
         it must have a header row and one column with name "primer" for the primer target
         sequences and one column named "padlock" for the padlock target sequence
-        ...     primer   ...   padlock ...
-                pr_seq1        pa_seq1
-                pr_seq2        pa_seq2
+        ...     ,primer,   ...   ,padlock, ...
+                ,pr_seq1,        ,pa_seq1,
+                ,pr_seq2,        ,pa_seq2,
                 ...            ...
         - output_file: Path to desired location and name of the output file, e.g. path/to/probe_df.csv
         - geneids_path: Path to a CSV file that provides one geneID for each gene. Either these geneIDs
@@ -90,9 +90,9 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
         they will be considered as already existing. If None is provided and create_geneids not True,
         an error will be thrown. While format is not fully specified, it must have a header row and one 
         column with name "gene" for the gene symbol and one column named "geneid" for the geneID:
-        ...     gene   ...   geneID ...
-                gene1        geneID1
-                gene2        geneID2
+        ...     ,gene,   ...   ,geneID, ...
+                ,gene1,        ,geneID1,
+                ,gene2,        ,geneID2,
                 ...            ...
         Default: None.
         - middle_const: Sequence of the middle constant in the padlock probe. Default: AATTATTAC (Shi
@@ -140,7 +140,6 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
     comp_dict = {"A" : "T", "T" : "A", "C" : "G", "G" : "C"} 
     #Prepares the final dataframe to safe the created probe sequences
     final_df = pd.DataFrame(columns = ["gene", "geneID", "padlockID", "padlock_seq", "primerID", "primer_seq"])
-
     #Loops through all genes of interest
     for gene in genes:
         if not gene in dbgenes:
@@ -180,8 +179,8 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
                             #saves everything in the dataframe
                             final_df.loc[len(final_df)] = [gene, geneid, padlockID, full_padlock, primerID, full_primer]
                             counter += 1
-                        else:
-                            break
+                    else:
+                        break
     #outputs datafram to desired output location
     final_df.to_csv(output_path)
     return final_df
