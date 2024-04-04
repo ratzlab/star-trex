@@ -1,6 +1,8 @@
 """
 Wraps starfish functions and code to allow a single line exectution in notebooks.
 Adds some useful functions to create informative output.
+
+Functions are taken from www.github.com/spacetx/starfish
 """
 
 import os
@@ -336,7 +338,6 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
             else:
                 #loads a single tile as stack into memory
                 stack_now = stacker(exp, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it)
-            print(f"...Available Memory after loading the tile: {format_bytes(get_available_memory())} bytes")
             #If the full image hasn't been loaded/transformed, transforms the tile
             if not full_transform:
                 print("...Calculates offset and transforms tile")
@@ -360,11 +361,11 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
                 full_decoded = collector(full_decoded, decoded)
             print(f"...Tile {x_edges},{y_edges} is finished! It took {datetime.now()-loop_start} to run")
             #If test == True the loop is stopped now as it now knows how long one loop takes
-            if test:
+            if test and loop_counter == 2:
                 break
-        if test:
+        if test and loop_counter == 2:
             break
-    if test:
+    if test and loop_counter == 2:
         loop_end = datetime.now()
         #calculates how long one loop took
         loop_time = loop_end - loop_start
@@ -408,7 +409,7 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
         #Estimates, converts and returns runtime 
         runtime = datetime.now() - start_time
         days, hours, minutes, seconds = seconds_converter(runtime.seconds)
-        print(f"The pipeline is finished at {datetime.now()}.\nIt took" 
+        print(f"The pipeline is finished at {datetime.now()}.\nIt took " 
               f"{days} day(s), {hours} hour(s), {minutes} minute(s) and {seconds} second(s).")
-        return spots_df, seg, gem
+        return spots_df, stack, seg, gem
                 
