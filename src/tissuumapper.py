@@ -31,15 +31,19 @@ def qc_csv(experiment, spot_intensities, output_name):
     for name in target_names:
         idx = np.where(experiment.codebook.target.values == name)[0][0]
         rs = np.where(experiment.codebook.values[idx] > 0)[0]
-        rounds_gt.append("{};{};{};{}".format(rs[0], rs[1], rs[2], rs[3]))
+        rounds = ""
+        for i in range(len(rs)):
+            rounds = rounds + f"{rs[i]};"
+        rounds_gt.append(rounds.strip(";"))
         chans = []
         for r in np.unique(rs):
             ch = experiment.codebook.values[idx][r]
             chans.append(np.argwhere(ch == np.amax(ch)))
         chs = np.concatenate(chans)
-        channels_gt.append(
-            "{};{};{};{}".format(chs[0][0], chs[1][0], chs[2][0], chs[3][0])
-        )
+        channels = ""
+        for j in range(len(chs)):
+            channels = channels + f"{chs[j][0]};"
+        channels_gt.append(channels.strip(";"))
 
     df = pd.DataFrame(
         np.stack([x, y, target_names, rounds_gt, channels_gt]).transpose(),
@@ -50,9 +54,10 @@ def qc_csv(experiment, spot_intensities, output_name):
     return output_name
 
 
+
 def qc_images(filtered_imgs, output_name):
     """
-    Creates the images from a starfish experiments compatible with the TissUUmaps "Spot Insepector" plugin
+    Creates the images from a starfish experiments compatible with the TissUUmaps "Spot Inspector" plugin
 
     Parameters:
         filtered_imgs (starfish ImageStack): image stack after filtering and deconvolving the data
