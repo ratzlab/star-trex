@@ -2,7 +2,7 @@
 Wraps starfish functions and code to allow a single line exectution in notebooks.
 Adds some useful functions to create informative output.
 
-Functions are taken from www.github.com/spacetx/starfish
+Functions are adapted from www.github.com/spacetx/starfish
 """
 
 import os
@@ -389,9 +389,6 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
               f" {minutes} minute(s) and {seconds} second(s).\n")
         return days, hours, minutes, seconds
     else:   
-        #Transforms the final spot decoded xarray into a readable dataframe
-        spots_df = df_creator(full_decoded)
-
         print("Spot detection is finished! \nSegments cells")
         #For cell segmentation it is necessary to know which channel is the nuclei channel. Nuclei images
         #can directly be loaded as stack. Or as integer indicating the channel number with nuclei staining.
@@ -411,5 +408,5 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
         days, hours, minutes, seconds = seconds_converter(runtime.seconds)
         print(f"The pipeline is finished at {datetime.now()}.\nIt took " 
               f"{days} day(s), {hours} hour(s), {minutes} minute(s) and {seconds} second(s).")
-        return spots_df, stack, seg, gem
+        return full_decoded, stack, seg, gem
                 
