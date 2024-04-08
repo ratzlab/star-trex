@@ -63,7 +63,8 @@ def padlock_builder(padlock, start_var, middle_const, genenid, end_const_padlock
 
 
 def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, middle_const = "AATTATTAC", 
-                   end_const_padlock = "CATACACTAAAGATA", end_const_primer = "TATCTT", create_geneids= False, probe_max = 4):
+                   end_const_padlock = "CATACACTAAAGATA", end_const_primer = "TATCTT", create_geneids= False,
+                   probe_max = 4, exclude_TA = True):
     """
     Creates for a given list of genes primer and padlock seqs
     based on hybridization seqs provided by a database and
@@ -79,7 +80,8 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
         - probedb_path: Path to CSV file that contains the database with calculated
         target sequences within the transcriptome. While format is not fully specified,
         it must have a header row and one column with name "primer" for the primer target
-        sequences and one column named "padlock" for the padlock target sequence
+        sequences and one column named "padlock" for the padlock target sequence, and a column
+        with "spacer" sequences between the two target sequences to eclude "TA" spacers
         ...     ,primer,   ...   ,padlock, ...
                 ,pr_seq1,        ,pa_seq1,
                 ,pr_seq2,        ,pa_seq2,
@@ -106,6 +108,7 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
         to True). If create_geneids = int and a gene:geneID assignment given with geneids_path paramter, then
         those geneIDs will be excluded from the creation of random geneIDs.
         - probe_max: Maximum number of probes to design per gene. Default: 4.
+        - exclude_TA: Exclude TA sequence in spacer to prevent annealing of probes to spacer. Default: True.
     
     Return:
         - A CSV file with genes, geneIDs, probeIDs and probe sequences
@@ -170,15 +173,16 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
                     if counter <= (probe_max-1):
                         #if it finds a gene that is in the list of genes of interest
                         if dbgenes[i] == gene:
-                            #builds full primer and padlock probe sequences
-                            full_primer = primer_builder(probedb.iloc[i]['primer'], middle_var, end_const_primer)
-                            full_padlock = padlock_builder(probedb.iloc[i]['padlock'], start_var, middle_const, geneid, end_const_padlock)
-                            #builds the padlock and primer ID
-                            padlockID = gene + "_0" + str(counter)
-                            primerID = gene + "_1" + str(counter)
-                            #saves everything in the dataframe
-                            final_df.loc[len(final_df)] = [gene, geneid, padlockID, full_padlock, primerID, full_primer]
-                            counter += 1
+                            if exclude_TA and not "TA" in probedb.iloc[i]['spacer']:
+                                #builds full primer and padlock probe sequences
+                                full_primer = primer_builder(probedb.iloc[i]['primer'], middle_var, end_const_primer)
+                                full_padlock = padlock_builder(probedb.iloc[i]['padlock'], start_var, middle_const, geneid, end_const_padlock)
+                                #builds the padlock and primer ID
+                                padlockID = gene + "_0" + str(counter)
+                                primerID = gene + "_1" + str(counter)
+                                #saves everything in the dataframe
+                                final_df.loc[len(final_df)] = [gene, geneid, padlockID, full_padlock, primerID, full_primer]
+                                counter += 1
                     else:
                         break
     #outputs datafram to desired output location
