@@ -14,6 +14,10 @@ import xarray as xr
 from starfish.types import Axes
 from starfish import FieldOfView
 from starfish import ImageStack
+import warnings
+
+#Suppress all annoying warnings
+warnings.filterwarnings("ignore")
 
 
 def stacker(exp, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it=False):
@@ -252,6 +256,30 @@ def format_bytes(size):
         size /= 1024.0
 
 
+def correct_pixels(full_decoded, x_edges, y_edges):
+    '''
+    Transforms pixel coordinates that show position of spot within a tile
+    to correct pixel coordinates for the position within the full image.
+    '''
+    #Extracts tile-related x and y coordinates from the xarray
+    x_old = full_decoded["x"].values
+    y_old = full_decoded["y"].values
+    #Prepare two lists for collection the correct coordinates
+    x_new = []
+    y_new = []
+
+    for i in range(len(x_old)):
+        #Each coordinate in x and y is added to the position of the left x- or y-edge
+        x_new.append(x_old[i] + x_edges[0])
+        y_new.append(y_old[i] + y_edges[0])
+
+    #Changes the tile-related coordinates in xarray to image-related
+    full_decoded["x"].values = x_new
+    full_decoded["y"].values = y_new
+
+    return full_decoded
+
+
 def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None, 
              rounds=None, zplanes=None, test = False, full_transform=False, transforms=None,
              stack_it=False, save_transforms=None, just_register=False):
@@ -352,7 +380,10 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
             #Calls the starfish spot decoding functions
             print("...Decodes spots")
             decoded = spot_decoder(exp, spots)
-            #If this is the first loop, it just stores the resultss
+            #Corrects pixel from tile-related to full image-related pixels
+            print("...Corrects pixels to full image values")
+            decoded = correct_pixels(decoded, x_edges, y_edges)
+            #If this is the first loop, it just stores the results
             if loop_counter == 1:
                 full_decoded = decoded
             else:
