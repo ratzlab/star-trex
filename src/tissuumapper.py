@@ -79,7 +79,7 @@ def qc_images(filtered_imgs, output_name):
             im = im.astype(np.uint8)
 
             im = Image.fromarray(im)
-            image_name = "Round{}_{}.tif".format(r, c)
+            image_name = "R{}_C{}.tif".format(r, c)
             im.save(os.path.join(output_name, image_name))
             image_names.append(image_name)
 
