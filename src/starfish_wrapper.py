@@ -20,7 +20,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def stacker(exp, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it=False):
+def stacker(exp, img_type, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it=False):
     '''
     Loads specific image planes into memory and organises them into an ImageStack object.
     '''
@@ -30,7 +30,7 @@ def stacker(exp, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it=Fals
     #organised in one stack 
     if stack_it:
         #create the iterator containing one image stack/round in one loop
-        stacks = exp[fov].get_images(FieldOfView.PRIMARY_IMAGES, chs=channels, rounds=rounds, zplanes=zplanes,
+        stacks = exp[fov].get_images(img_type, chs=channels, rounds=rounds, zplanes=zplanes,
                                     x = slice(x_edges[0], x_edges[1]), y= slice(y_edges[0], y_edges[1]))
 
         #if iterator contains one round process can be as usual
@@ -56,7 +56,7 @@ def stacker(exp, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it=Fals
             stack = ImageStack.from_numpy(xarray_data)
     else:
        #Ideally coordinates are aligned and the stack can simply be loaded with the get_image() starfish function
-       stack = exp[fov].get_image(FieldOfView.PRIMARY_IMAGES, chs=channels, rounds=rounds, zplanes=zplanes,
+       stack = exp[fov].get_image(img_type, chs=channels, rounds=rounds, zplanes=zplanes,
                                   x = slice(x_edges[0], x_edges[1]), y= slice(y_edges[0], y_edges[1]))
     return stack
 
@@ -131,12 +131,14 @@ def spot_caller(stack):
     '''
     from starfish.spots import FindSpots
 
+
     bd = FindSpots.BlobDetector(
         min_sigma=1,
         max_sigma=8,
         num_sigma=10,
         threshold=np.percentile(np.ravel(stack.xarray.values), 95),
-        exclude_border=None) 
+        exclude_border=None,
+        is_volume = True) 
     return bd.run(stack)
 
 
@@ -160,13 +162,15 @@ def spot_decoder(exp, spots):
     return decode_mask
 
 
-def segmenter(stack, nuclei):
+def segmenter(stack, nuclei, transforms):
     '''
     Wrapper of starfish segmenting functions
     '''
     import numpy as np
     from starfish.image import Segment
     from starfish.types import Axes
+
+    stack = transformer(stack, transforms, save_transforms = False, just_register = False)
 
     dapi_thresh = .22  # binary mask for cell (nuclear) locations
     stain_thresh = 0.011  # binary mask for overall cells // binarization of stain
@@ -280,7 +284,7 @@ def correct_pixels(full_decoded, x_edges, y_edges):
     return full_decoded
 
 
-def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None, 
+def run(exp, img_type, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3], 
              rounds=None, zplanes=None, test = False, full_transform=False, transforms=None,
              stack_it=False, save_transforms=None, just_register=False):
     '''
@@ -289,15 +293,15 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
 
     Parameters:
         - exp: Starfish Experiment object containing the experiment to process.
-        - nuclei: Can be either an ImageStack object containing the loaded nuclei images.
-          Or can be an integer indicating the nuclei channel in the experiment.
+        - nuclei: Image type as string, can either be "primary" for spot images or "nuclei" for nuclei
+          stainings.
         - x_step: Desired X-axis tile length in pixel.
         - y_step: Desired Y-axis tile length in pixel.
         - x_max: Total length of x-axis of FOV.
         - y_max: Total length of y-axis of FOV.
         - fov: Name of the Field of View to work on if a specific shall be selected, otherwise set it to None.
         - channels: List of channels to focus analysis on, e.g. [0,1,2] if the 4th channel is a nuclei channel.
-          To use all channels, set to None. Default: None.
+          To use all channels, set to None. Default: [0,1,2,3].
         - rounds: List of rounds to focus analysis on, e.g. [1,2,3,4]. To use all rounds, set to None.
           Default: None.
         - zplanes: List of zplanes to focus analysis on. To use all zplanes, set to None. Default: None.
@@ -343,7 +347,8 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
     #if full_transform, load the full image and transform
     if full_transform:
         print("Loads and transform the full image")
-        stack = stacker(exp, x_edges=(0,x_max), y_edges=(0,y_max), fov=fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
+        stack = stacker(exp, img_type=img_type, x_edges=(0,x_max), y_edges=(0,y_max), fov=fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
+        print(stack)
         stack = transformer(stack, transforms, save_transforms, just_register)
         #Stops the execution here if just_register is True
         if just_register:
@@ -402,11 +407,11 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
         loop_time = loop_end - loop_start
         #involves the time for segmentation in the calculation
         print("Segments cells")
-        if type(nuclei) == int:
-            x_edges = (0,2048)
-            y_edges = (0,2048)
-            nuclei = stacker(exp, x_edges, y_edges, fov, channels=[nuclei], rounds=rounds, zplanes=zplanes, stack_it=stack_it)
-        seg, masks = segmenter(stack, nuclei)
+        x_edges = (0,2048)
+        y_edges = (0,2048)
+        img_type = "nuclei"
+        nuclei = stacker(exp, img_type, x_edges, y_edges, fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
+        seg, masks = segmenter(stack, nuclei, transforms)
         print("Creates gene expression matrix")
         gem = make_expression_matrix(masks, decoded)
         #Runtime calculation based on the number of loops times the time one loop takes + the initation time before
@@ -424,11 +429,11 @@ def run(exp, nuclei, x_step, y_step, x_max, y_max, fov=None, channels=None,
         #For cell segmentation it is necessary to know which channel is the nuclei channel. Nuclei images
         #can directly be loaded as stack. Or as integer indicating the channel number with nuclei staining.
         #here it it tests whether the nuclei variable is int and if yes, creates the stack
-        if type(nuclei) == int:
-            x_edges = (0,2048)
-            y_edges = (0,2048)
-            nuclei = stacker(exp, x_edges, y_edges, fov, channels=[nuclei], rounds=rounds, zplanes=zplanes, stack_it=stack_it)
-        seg, masks = segmenter(stack, nuclei)
+        x_edges = (0,2048)
+        y_edges = (0,2048)
+        img_type = "nuclei"
+        nuclei = stacker(exp, img_type, x_edges, y_edges, fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
+        seg, masks = segmenter(stack, nuclei, transforms)
         print("Creates gene expression matrix")
         #Calls starfish functions that transforms results of spot decoding and segmentation into a gene
         #expression matrix
