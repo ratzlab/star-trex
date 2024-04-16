@@ -113,7 +113,7 @@ def create_codebook(
         - trim: If int provided, trims geneIDs to provided length. If None, no trimming 
         is performed. Default: None
         - complementary: If true, creates the complementary geneID sequence before
-        creating the codebook
+        creating the codebook. Default: False
     Return:
         - codebook
     """
