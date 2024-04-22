@@ -104,7 +104,6 @@ def transformer(stack, transforms, save_transforms, just_register):
         transforms = transformslist
     
     #transforms ImageStack with provided or calculated transforms list
-    projection = stack.reduce({Axes.CH, Axes.ZPLANE}, func="max")
     warp = image.ApplyTransform.Warp()
     stack = warp.run(
         stack=stack,
@@ -123,6 +122,15 @@ def intensity_equalizer(stack):
     mh = image.Filter.MatchHistograms({Axes.CH, Axes.ROUND})
     scaled = mh.run(stack, in_place=False, verbose=True, n_processes=8)
     return scaled
+
+
+def autofluorescence_remover(stack):
+    from starfish.image import Filter
+    
+    masking_radius = 5
+    filt = Filter.WhiteTophat(masking_radius, is_volume=True)
+    filtered = filt.run(stack, verbose=True, in_place=False)
+    return filtered
 
 
 def spot_caller(stack):
@@ -162,15 +170,13 @@ def spot_decoder(exp, spots):
     return decode_mask
 
 
-def segmenter(stack, nuclei, transforms):
+def segmenter(stack, nuclei):
     '''
     Wrapper of starfish segmenting functions
     '''
     import numpy as np
     from starfish.image import Segment
     from starfish.types import Axes
-
-    stack = transformer(stack, transforms, save_transforms = False, just_register = False)
 
     dapi_thresh = .22  # binary mask for cell (nuclear) locations
     stain_thresh = 0.011  # binary mask for overall cells // binarization of stain
@@ -284,7 +290,7 @@ def correct_pixels(full_decoded, x_edges, y_edges):
     return full_decoded
 
 
-def run(exp, img_type, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3], 
+def run(exp, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3], 
              rounds=None, zplanes=None, test = False, full_transform=False, transforms=None,
              stack_it=False, save_transforms=None, just_register=False):
     '''
@@ -347,12 +353,16 @@ def run(exp, img_type, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3
     #if full_transform, load the full image and transform
     if full_transform:
         print("Loads and transform the full image")
-        stack = stacker(exp, img_type=img_type, x_edges=(0,x_max), y_edges=(0,y_max), fov=fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
-        print(stack)
-        stack = transformer(stack, transforms, save_transforms, just_register)
-        #Stops the execution here if just_register is True
-        if just_register:
-            return
+        if transforms == None:
+            nuclei = stacker(exp, img_type="nuclei", x_edges=(0,x_max), y_edges=(0,y_max), fov=fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
+            transforms = transformer(nuclei, transforms=transforms, save_transforms=False, just_register=True)
+            #Stops the execution here if just_register is True
+            if just_register:
+                return
+        stack = stacker(exp, img_type="primary", x_edges=(0,x_max), y_edges=(0,y_max), fov=fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
+        stack = transformer(stack, transforms=transforms, save_transforms=False, just_register=False)
+
+    
     #start loop
     for i in range(0, x_max, x_step):
         for j in range(0, y_max, y_step):
@@ -367,7 +377,8 @@ def run(exp, img_type, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3
             print(f"...Available Memory before loading the tile: {format_bytes(get_available_memory())} bytes")
             #if the image has already been fully loaded a stack, it now extracts sub-stacks
             if full_transform:
-                stack_now = stack.sel({Axes.X: x_edges, Axes.Y: y_edges})
+                #stack_now = stack.sel({Axes.X: x_edges, Axes.Y: y_edges})
+                stack_now = stack
             else:
                 #loads a single tile as stack into memory
                 stack_now = stacker(exp, x_edges, y_edges, fov, channels, rounds, zplanes, stack_it)
@@ -429,11 +440,8 @@ def run(exp, img_type, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3
         #For cell segmentation it is necessary to know which channel is the nuclei channel. Nuclei images
         #can directly be loaded as stack. Or as integer indicating the channel number with nuclei staining.
         #here it it tests whether the nuclei variable is int and if yes, creates the stack
-        x_edges = (0,2048)
-        y_edges = (0,2048)
-        img_type = "nuclei"
-        nuclei = stacker(exp, img_type, x_edges, y_edges, fov, channels=channels, rounds=rounds, zplanes=zplanes, stack_it=stack_it)
-        seg, masks = segmenter(stack, nuclei, transforms)
+        nuclei = transformer(nuclei, transforms=None, save_transforms=False, just_register=False)
+        seg, masks = segmenter(stack, nuclei)
         print("Creates gene expression matrix")
         #Calls starfish functions that transforms results of spot decoding and segmentation into a gene
         #expression matrix
@@ -444,5 +452,5 @@ def run(exp, img_type, x_step, y_step, x_max, y_max, fov=None, channels=[0,1,2,3
         days, hours, minutes, seconds = seconds_converter(runtime.seconds)
         print(f"The pipeline is finished at {datetime.now()}.\nIt took " 
               f"{days} day(s), {hours} hour(s), {minutes} minute(s) and {seconds} second(s).")
-        return full_decoded, stack, seg, gem
+        return full_decoded, stack, seg, gem, masks, nuclei
                 
