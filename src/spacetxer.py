@@ -12,7 +12,7 @@ import pandas as pd
 from src.path_handler import *
 import os
 
-def channel_sorter(channel, nuclei, num_channels):
+def channel_sorter(channel, nuclei):
     '''
     Re-sorts the channel number such as that the nuclei channel gets the last number. This is unfortunately necessary
     as starfish does not allow cropping out a channel from the beginning or middle of the list in order to perform 
@@ -47,7 +47,7 @@ def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0):
     #Check the paths and convert to Path object
     input_path = path_maker(input_path)
     output_path = path_maker(output_path)
-
+    counter = 0
     #Create the separate spot and nuclei output folders
     if not os.path.exists(os.path.join(output_path, "primary")):
         os.makedirs(os.path.join(output_path, "primary"))
@@ -122,18 +122,18 @@ def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0):
                             maxZ = minZ + sizeZ
                             if channel == nuclei:
                                 image_type = "nuclei"
-                                channel = channel_sorter(channel, nuclei, num_channels)
-                                coord_nuclei.loc[len(coord_nuclei)] = [fov_num, round, channel, zplane, minX, minY, minZ, maxX, maxY, maxZ]
+                                channel_new = channel_sorter(channel, nuclei)
+                                coord_nuclei.loc[len(coord_nuclei)] = [fov_num, round, channel_new, zplane, minX, minY, minZ, maxX, maxY, maxZ]
                             else:
                                 image_type = "primary"
-                                channel = channel_sorter(channel, nuclei, num_channels)
-                                coord_primary.loc[len(coord_primary)] = [fov_num, round, channel, zplane, minX, minY, minZ, maxX, maxY, maxZ]
+                                channel_new = channel_sorter(channel, nuclei)
+                                coord_primary.loc[len(coord_primary)] = [fov_num, round, channel_new, zplane, minX, minY, minZ, maxX, maxY, maxZ]
                             
                     # Save the extracted image
-                    full_output_path = f"{output_path}/{image_type}/{image_type}-f{fov_num}-r{round}-c{channel}-z{zplane}.tiff"
+                    full_output_path = f"{output_path}/{image_type}/{image_type}-f{fov_num}-r{round}-c{channel_new}-z{zplane}.tiff"
                     tifffile.imsave(full_output_path, single_plane)
                     print(f"Saved: {full_output_path}")
-    
+
     #Save coordinates as csv file
     for col in ["fov", "round", "ch", "zplane"]:
         coord_primary[col] = coord_primary[col].astype(int) 
