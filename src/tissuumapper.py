@@ -55,7 +55,7 @@ def qc_csv(experiment, spot_intensities, output_name):
 
 
 
-def qc_images(filtered_imgs, output_name):
+def qc_images(filtered_imgs, output_name, img_type):
     """
     Creates the images from a starfish experiments compatible with the TissUUmaps "Spot Inspector" plugin
 
@@ -79,7 +79,10 @@ def qc_images(filtered_imgs, output_name):
             im = im.astype(np.uint8)
 
             im = Image.fromarray(im)
-            image_name = "R{}_C{}.tif".format(r, c)
+            if img_type == "nuclei":
+                image_name = "nuclei-R{}_C{}.tif".format(r, c)
+            else:
+                image_name = "R{}_C{}.tif".format(r, c)
             im.save(os.path.join(output_name, image_name))
             image_names.append(image_name)
 
