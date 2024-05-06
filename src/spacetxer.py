@@ -47,7 +47,6 @@ def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0):
     #Check the paths and convert to Path object
     input_path = path_maker(input_path)
     output_path = path_maker(output_path)
-    counter = 0
     #Create the separate spot and nuclei output folders
     if not os.path.exists(os.path.join(output_path, "primary")):
         os.makedirs(os.path.join(output_path, "primary"))
