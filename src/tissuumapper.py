@@ -29,21 +29,25 @@ def qc_csv(experiment, spot_intensities, output_name):
     target_names = spot_intensities.target.values
 
     for name in target_names:
-        idx = np.where(experiment.codebook.target.values == name)[0][0]
-        rs = np.where(experiment.codebook.values[idx] > 0)[0]
-        rounds = ""
-        for i in range(len(rs)):
-            rounds = rounds + f"{rs[i]};"
-        rounds_gt.append(rounds.strip(";"))
-        chans = []
-        for r in np.unique(rs):
-            ch = experiment.codebook.values[idx][r]
-            chans.append(np.argwhere(ch == np.amax(ch)))
-        chs = np.concatenate(chans)
-        channels = ""
-        for j in range(len(chs)):
-            channels = channels + f"{chs[j][0]};"
-        channels_gt.append(channels.strip(";"))
+        if not name == "undefined":
+            idx = np.where(experiment.codebook.target.values == name)[0][0]
+            rs = np.where(experiment.codebook.values[idx] > 0)[0]
+            rounds = ""
+            for i in range(len(rs)):
+                rounds = rounds + f"{rs[i]};"
+            rounds_gt.append(rounds.strip(";"))
+            chans = []
+            for r in np.unique(rs):
+                ch = experiment.codebook.values[idx][r]
+                chans.append(np.argwhere(ch == np.amax(ch)))
+            chs = np.concatenate(chans)
+            channels = ""
+            for j in range(len(chs)):
+                channels = channels + f"{chs[j][0]};"
+            channels_gt.append(channels.strip(";"))
+        else:
+            rounds_gt.append("00000")
+            channels_gt.append("00000")
 
     df = pd.DataFrame(
         np.stack([x, y, target_names, rounds_gt, channels_gt]).transpose(),
