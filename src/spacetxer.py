@@ -25,7 +25,7 @@ def channel_sorter(channel, nuclei):
     return channel
 
 
-def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0):
+def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0, z_dist = 0.3):
     """
     Splits single round tiff images into one tiff image per round, channel and zplane. 
     Creates coordinates.csv file. Both steps are required for transformation to SpaceTx 
@@ -95,7 +95,7 @@ def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0):
             for pixel in root.iter(url + "Pixels"):
                 sizeX = float(pixel.attrib["PhysicalSizeX"]) * int(pixelx)
                 sizeY = float(pixel.attrib["PhysicalSizeY"]) * int(pixely)
-                sizeZ = float(pixel.attrib["PhysicalSizeX"])
+                sizeZ = z_dist
 
             # Iterate through each channel and z plane
             for channel in range(num_channels):
