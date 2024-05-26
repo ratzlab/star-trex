@@ -47,7 +47,11 @@ def seurat_outputter(gem_nested, work_dir):
     pd.DataFrame(gem_np, index = cells, columns = features).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "matrix.mtx"), sep = "\t", header = False, index = False)
 
     #create metadata table
-    meta = gem_nested[["x", "y", "z", "xc", "yc", "zc", "area", "number_of_undecoded_spots"]].iloc[::4]
+    #since the gem table has a nested index of "cells" and for each cell "genes" and each cell has only one metadata row,
+    #we need to reduce the size of the table to one row per cell first. 
+    jump = len(set(gem_nested.index.get_level_values('genes')))
+    meta = gem_nested[["x", "y", "z", "xc", "yc", "zc", "area", "number_of_undecoded_spots"]].iloc[::jump]
+    #Then we use the cellIDs as index for the metadata
     meta.index = cells
     meta.to_csv(os.path.join(work_dir, "output", "metadata.tsv"), sep = "\t", header = True, index = True)
 
