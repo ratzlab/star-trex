@@ -174,11 +174,11 @@ class CloneGraph:
 
     @staticmethod
     def write_clones(file, clones):
-        print("clone_nr", "cell_id", sep="\t", file=file)
+        print("clone_nr", "cell_id", "clone_id", sep="\t", file=file)
         for index, (clone_id, cells) in enumerate(sorted(clones), start=1):
             cells = sorted(cells)
             for cell in cells:
-                print(index, cell.cell_id, sep="\t", file=file)
+                print(index, cell.cell_id, clone_id, sep="\t", file=file)
 
     @staticmethod
     def write_clone_sequences(file, clones):
