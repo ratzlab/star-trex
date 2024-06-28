@@ -22,40 +22,6 @@ class Cell:
         return hash(self.cell_id)
 
 
-def seurat_outputter(gem_nested, work_dir):
-    '''
-    Creates output files and folders required for seurat.
-    '''
-    #Extract cells and gene names
-    cells = list(set(gem_nested.index.get_level_values(level=0).tolist()))
-    features = list(set(gem_nested.index.get_level_values(level=1).tolist()))
-    #Create empty matrix to be filled with expression values
-    gem_np = np.zeros((len(cells), len(features)))
-
-    #for each cell and gene, extract expression value and insert into matrix
-    for i in range(len(cells)):
-        for j in range(len(features)):
-            gem_np[i,j] = gem_nested.loc[(cells[i], features[j]), 'expression_matrix']
-    
-    #create output folders for seurat
-    os.makedirs(os.path.join(work_dir, "output/"), exist_ok=True)
-    os.makedirs(os.path.join(work_dir, "output", "filtered_features_bc_matrices"), exist_ok=True)
-
-    #create df gene expression matrix from cells, genes and expression values
-    pd.DataFrame(cells, columns=["cells"]).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "barcodes.tsv"), sep = "\t", header = False, index = False)
-    pd.DataFrame(features, columns=["feautures"]).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "features.tsv"), sep = "\t", header = False, index = False)
-    pd.DataFrame(gem_np, index = cells, columns = features).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "matrix.mtx"), sep = "\t", header = False, index = False)
-
-    #create metadata table
-    #since the gem table has a nested index of "cells" and for each cell "genes" and each cell has only one metadata row,
-    #we need to reduce the size of the table to one row per cell first. 
-    jump = len(set(gem_nested.index.get_level_values('genes')))
-    meta = gem_nested[["x", "y", "z", "xc", "yc", "zc", "area", "number_of_undecoded_spots"]].iloc[::jump]
-    #Then we use the cellIDs as index for the metadata
-    meta.index = cells
-    meta.to_csv(os.path.join(work_dir, "output", "metadata.tsv"), sep = "\t", header = True, index = True)
-
-
 def cell_constructer(gem_nested):
     cellids = list(set(gem_nested.index.get_level_values(level=0).tolist()))
     cloneids = list(set(gem_nested.index.get_level_values(level=1).tolist()))
