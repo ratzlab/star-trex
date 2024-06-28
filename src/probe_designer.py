@@ -127,6 +127,12 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
     #Load the probe database
     probedb = pd.read_csv(probedb_path, header=0)
 
+    #Checking if create_geneids was set correctly
+    if type(create_geneids) != int and create_geneids != False:
+        #If create_geneids is set to True or another type apart from int or False
+        msg = f"The parameter create_geneids needs to be set to False or to an integer, indicating the length of randomly created geneIDs. It cannot be set to {create_geneids}."
+        raise Exception(msg)
+
     #Extracts existing geneIDs
     if geneids_path:
         geneids_df = pd.read_csv(geneids_path)
@@ -135,7 +141,7 @@ def probe_designer(genes_path, probedb_path, output_path, geneids_path = None, m
     elif not create_geneids:
         #If no existing geneids given and create_geneids = False, raises exception
         raise Exception("GeneIDs either need to be provided or the create_geneids parameter set to the"
-                        "length of the geneID")
+                        "length of the geneID.")
     
     #Extracts a list of existing genes in the target seq database
     dbgenes = probedb["Gene"].values
