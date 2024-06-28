@@ -1,0 +1,56 @@
+##Size definition and tiling: Settings to define the image plane and tile size##
+x_step: 2048
+y_step: 2048
+x_max: 2048
+y_max: 2048
+#
+##Subsetting: Setting to define the part of the image stack dimensions to be processed##
+fov: Null
+rounds: Null
+zplanes: Null
+channels: Null
+#
+##Volume or Plane: Setting to specify whether data describe a volumne (x,y,z dimensions) or a plane (x,y)##
+is_volume: False
+#
+##Image registration: Settings to be applied to the image registration/transformation process##
+full_transform: True
+transforms: Null
+save_transforms: Null
+just_register: False
+#
+##Test run: Setting to decide whether the run should be a test to estimate full run time##
+test: False
+#
+##Manual stacking: Setting to stack the image planes manually in case the iamge coordinates do not align across all images##
+stack_it: False
+#
+##Spot finding: Settings to influence the spot finding process##
+radius: [1, 5]
+num_sigma: 10
+threshold_percentile: 96.5
+overlap: 1.0
+measurement_type: "max"
+#
+##Spot decoding: Settings to influence the spot decoding process##
+search_radius: 19
+anchor_round: 0
+#
+##Deconvolution: Settings to influence the deconvolution of images##
+deconvolution: True
+sigma: 1.5
+num_iter: 9
+#
+##WhiteTophat filter: Settings to tune the White Tophat filter##
+whitetophat: True
+masking_radius: 5
+#
+##Intensity equalisation: Settings to tune the intensity equalisation##
+equalise: True
+#
+##Cell segmentation: Settings to influence the cell segmentation process##
+segmentation_starfish: True
+roi_import: Null
+dapi_threshold: 0.26
+stain_threshold: 0.014
+min_dist: 56

@@ -81,16 +81,16 @@ def create_codebook(
         n_rounds: int,
         output_path=None,
         two_bases_code=False,
-        border_base="C",
+        border_base="G",
         inverse=True,
         trim=None,
-        complementary=False
+        complementary=True
 ):
     """
     Returns a starfish Codebook (starfish.core.codebook.codebook) from an input CSV file.
     Optionally, the Codebook can be stored as JSON file.
 
-    Input: 
+    Parameters: 
         - code_path: Path to CSV file assigning each target (gene, cloneID) to one geneID.
         The file mus have the following format [target_name, target_id]:
         cloneID1,AGAAA
@@ -107,13 +107,13 @@ def create_codebook(
         - output_path (optional): path to output location of JSON file, default: None
         - two_bases_code: Boolean, if True a two-bases key will be used, default: False
         - border_base: Base that borders the target_id, can be None for no border base,
-        default: C
+        default: G
         - inverse: If true, inverses the geneID sequence before creating the codebook,
         default: True
         - trim: If int provided, trims geneIDs to provided length. If None, no trimming 
         is performed. Default: None
         - complementary: If true, creates the complementary geneID sequence before
-        creating the codebook
+        creating the codebook. Default: True
     Return:
         - codebook
     """
