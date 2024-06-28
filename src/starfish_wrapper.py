@@ -454,7 +454,7 @@ def run(exp, x_step = 2048, y_step = 2048, x_max = 2048, y_max = 2048, settings_
     args, _, _, values = inspect.getargvalues(inspect.currentframe())
     #Creating the settings dictionary with given parameters and the settings file
     s = settings_reader(settings_path, run, args, values)
-    
+
     loop_counter = 0
     total_loops = len(range(0,s.x_max,s.x_step)) * len(range(0,s.y_max,s.y_step))
 
@@ -524,23 +524,30 @@ def run(exp, x_step = 2048, y_step = 2048, x_max = 2048, y_max = 2048, settings_
                 full_decoded = collector(full_decoded, decoded)
             print(f"...Tile {x_edges},{y_edges} is finished! It took {datetime.now()-loop_start} to run")
             #If test == True the loop is stopped now as it now knows how long one loop takes
-            if s.test and loop_counter == 2:
+            if s.test:
                 break
-        if s.test and loop_counter == 2:
+        if s.test:
             break
-    if s.test and loop_counter == 2:
+    if s.test:
         loop_end = datetime.now()
         #calculates how long one loop took
         loop_time = loop_end - loop_start
         #involves the time for segmentation in the calculation
-        print("Segments cells")
-        x_edges = (0,s.x_max)
-        y_edges = (0,s.y_max)
-        img_type = "nuclei"
-        nuclei = stacker(exp, img_type, x_edges, y_edges, s.fov, channels=s.channels, rounds=s.rounds, zplanes=s.zplanes, stack_it=s.stack_it)
-        seg, masks = segmenter(stack, nuclei, s.dapi_threshold, s.stain_threshold, s.min_dist)
-        print("Creates gene expression matrix")
-        gem = make_expression_matrix(masks, decoded)
+        print("Spot detection is finished!")
+        #For cell segmentation it is necessary to know which channel is the nuclei channel. Nuclei images
+        #can directly be loaded as stack. Or as integer indicating the channel number with nuclei staining.
+        #here it it tests whether the nuclei variable is int and if yes, creates the stack
+        nuclei = transformer(nuclei, transforms=None, save_transforms=False, just_register=False)
+        #nuclei = autofluorescence_remover(nuclei, is_volume)
+        #nuclei = nuclei.reduce(dims=[Axes.ROUND, Axes.CH, Axes.ZPLANE], func="max")
+        if s.roi_import or s.segmentation_starfish:
+            if s.roi_import != None:
+                from starfish import BinaryMaskCollection
+                dapi = nuclei.reduce(dims=[Axes.ROUND], func="max")
+                masks = BinaryMaskCollection.from_fiji_roi_set(path_to_roi_set_zip=s.roi_import, original_image=dapi)
+            elif s.segmentation_starfish:
+                print("Segments cells")
+                seg, masks = segmenter(stack, nuclei, s.dapi_threshold, s.stain_threshold, s.min_dist)
         #Runtime calculation based on the number of loops times the time one loop takes + the initation time before
         #looping starts + the end time after looping ends (segmentation)
         runtime = loop_time * len(list(exp.keys())) * total_loops + (loop_start - start_time) 
