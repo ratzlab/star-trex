@@ -25,22 +25,19 @@ def channel_sorter(channel, nuclei):
     return channel
 
 
-def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0, z_dist = 0.3):
+def process_tiff(input_path, output_path, extension=".ome.tif", fov=0, nuclei = 0, z_dist = 0.3):
     """
     Splits single round tiff images into one tiff image per round, channel and zplane. 
     Creates coordinates.csv file. Both steps are required for transformation to SpaceTx 
     format.
 
     Parameters:
-        - input_path: String with path to input folder containing either one (ome).tiff
-          image per round OR, if fov="multi", one folder per FOV with each containg one 
-          (ome).tiff per round
+        - input_path: String with path to input folder containing one (ome).tiff image per round
         - output_path: String with path to output folder
         - extension: If input folder contains several file types, a specific file extension
-          such as ".tiff" can be provided to select only certain files, default: None
-        - fov: The given fov, can either be an number (int) or "multi". If "multi"
-          is given, a folder with several input folders (one per FOV) needs to be provided,
-          default: 0
+          such as ".tiff" can be provided to select only certain files, default: ".ome.tif".
+        - fov: Number of the FOV to work with (can be used if there are several FOVs in the
+          experiment), default: 0.
         - nuclei: Number of the nuclei channel (channel numbering starts with 0). Indicate None
           if there is no nuclei channel. Default: 0.
     """
@@ -55,83 +52,73 @@ def process_tiff(input_path, output_path, extension=None, fov=0, nuclei = 0, z_d
             os.makedirs(os.path.join(output_path, "nuclei"))
 
     #Get the input image files
-    if fov == "multi":
-        path_list = []
-        folder_list = get_folders_in_path(input_path)
-        for folder in folder_list:
-            path_list.append(get_files_in_path(folder, extension))
-    else: 
-        path_list = [get_files_in_path(input_path, extension)]
+    path_list = [get_files_in_path(input_path, extension)]
 
     #Initate a coordinate pandas table
     coord_primary = pd.DataFrame(columns=["fov", "round", "ch","zplane","xc_min","yc_min","zc_min","xc_max","yc_max","zc_max"])
     if nuclei != None:
         coord_nuclei = pd.DataFrame(columns=["fov", "round", "ch","zplane","xc_min","yc_min","zc_min","xc_max","yc_max","zc_max"])
 
-    #Loop through the FOVs
-    for fov_num in range(len(path_list)):
+    #Loop through each image/round
+    for round in range(len(path_list)):
+        # Read the TIFF image
+        tiff_stack = tifffile.imread(path_list[round])
+        
+        #Read the metadata as XML tree
+        with TiffFile(path_list[round]) as tiff:
+            root = ET.fromstring(tiff.ome_metadata)
+        url = root.tag.strip("OME")
 
-        #Loop through each image/round
-        for round in range(len(path_list[fov_num])):
-            # Read the TIFF image
-            tiff_stack = tifffile.imread(path_list[fov_num][round])
-            
-            #Read the metadata as XML tree
-            with TiffFile(path_list[fov_num][round]) as tiff:
-                root = ET.fromstring(tiff.ome_metadata)
-            url = root.tag.strip("OME")
+        #The below line is useful for reading and understanding the xml metadata
+        #print(ET.tostring(root, encoding='utf8').decode('utf8'))
 
-            #The below line is useful for reading and understanding the xml metadata
-            #print(ET.tostring(root, encoding='utf8').decode('utf8'))
+        # Extract the number of channels and zplanes
+        try:
+            num_zplanes, num_channels, pixelx, pixely = tiff_stack.shape
+        except:
+            num_zplanes = 1
+            num_channels, pixelx, pixely = tiff_stack.shape
 
-            # Extract the number of channels and zplanes
-            try:
-                num_zplanes, num_channels, pixelx, pixely = tiff_stack.shape
-            except:
-                num_zplanes = 1
-                num_channels, pixelx, pixely = tiff_stack.shape
+        #Extract the physical size of the planes
+        for pixel in root.iter(url + "Pixels"):
+            sizeX = float(pixel.attrib["PhysicalSizeX"]) * int(pixelx)
+            sizeY = float(pixel.attrib["PhysicalSizeY"]) * int(pixely)
+            sizeZ = z_dist
 
-            #Extract the physical size of the planes
-            for pixel in root.iter(url + "Pixels"):
-                sizeX = float(pixel.attrib["PhysicalSizeX"]) * int(pixelx)
-                sizeY = float(pixel.attrib["PhysicalSizeY"]) * int(pixely)
-                sizeZ = z_dist
+        # Iterate through each channel and z plane
+        for channel in range(num_channels):
+            for zplane in range(num_zplanes):
+                # Extract a specific plane
+                if num_zplanes > 1:
+                    single_plane = tiff_stack[zplane,channel, :, :]
+                else:
+                    single_plane = tiff_stack[channel, :, :]
 
-            # Iterate through each channel and z plane
-            for channel in range(num_channels):
-                for zplane in range(num_zplanes):
-                    # Extract a specific plane
-                    if num_zplanes > 1:
-                        single_plane = tiff_stack[zplane,channel, :, :]
-                    else:
-                        single_plane = tiff_stack[channel, :, :]
-
-                    #Extract and build physical coordinates table
-                    for tiffdata in root.iter(url + 'TiffData'):
-                        if tiffdata.attrib["FirstZ"] == str(zplane) and tiffdata.attrib["FirstC"] == str(channel):
-                            #This code is not yet for multiple fovs in one image!
-                            minX = 0.0
-                            #minX = float(tiffdata.attrib["PositionX"])
-                            minY = 0.0
-                            #minY = float(tiffdata.attrib["PositionY"])
-                            minZ = zplane * sizeZ
-                            #minZ = float(tiffdata.attrib["PositionZ"])
-                            maxX = minX + float(sizeX)
-                            maxY = minY + float(sizeY)
-                            maxZ = minZ + sizeZ
-                            if channel == nuclei:
-                                image_type = "nuclei"
-                                channel_new = channel_sorter(channel, nuclei)
-                                coord_nuclei.loc[len(coord_nuclei)] = [fov_num, round, channel_new, zplane, minX, minY, minZ, maxX, maxY, maxZ]
-                            else:
-                                image_type = "primary"
-                                channel_new = channel_sorter(channel, nuclei)
-                                coord_primary.loc[len(coord_primary)] = [fov_num, round, channel_new, zplane, minX, minY, minZ, maxX, maxY, maxZ]
-                            
-                    # Save the extracted image
-                    full_output_path = f"{output_path}/{image_type}/{image_type}-f{fov_num}-r{round}-c{channel_new}-z{zplane}.tiff"
-                    tifffile.imsave(full_output_path, single_plane)
-                    print(f"Saved: {full_output_path}")
+                #Extract and build physical coordinates table
+                for tiffdata in root.iter(url + 'TiffData'):
+                    if tiffdata.attrib["FirstZ"] == str(zplane) and tiffdata.attrib["FirstC"] == str(channel):
+                        minX = 0.0
+                        #minX = float(tiffdata.attrib["PositionX"])
+                        minY = 0.0
+                        #minY = float(tiffdata.attrib["PositionY"])
+                        minZ = zplane * sizeZ
+                        #minZ = float(tiffdata.attrib["PositionZ"])
+                        maxX = minX + float(sizeX)
+                        maxY = minY + float(sizeY)
+                        maxZ = minZ + sizeZ
+                        if channel == nuclei:
+                            image_type = "nuclei"
+                            channel_new = channel_sorter(channel, nuclei)
+                            coord_nuclei.loc[len(coord_nuclei)] = [fov, round, channel_new, zplane, minX, minY, minZ, maxX, maxY, maxZ]
+                        else:
+                            image_type = "primary"
+                            channel_new = channel_sorter(channel, nuclei)
+                            coord_primary.loc[len(coord_primary)] = [fov, round, channel_new, zplane, minX, minY, minZ, maxX, maxY, maxZ]
+                        
+                # Save the extracted image
+                full_output_path = f"{output_path}/{image_type}/{image_type}-f{fov}-r{round}-c{channel_new}-z{zplane}.tiff"
+                tifffile.imsave(full_output_path, single_plane)
+                print(f"Saved: {full_output_path}")
 
     #Save coordinates as csv file
     for col in ["fov", "round", "ch", "zplane"]:

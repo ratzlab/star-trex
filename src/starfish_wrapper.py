@@ -373,7 +373,9 @@ def run(exp, x_step = 2048, y_step = 2048, x_max = 2048, y_max = 2048, settings_
         - x_max: Total length of x-axis of FOV.
         - y_max: Total length of y-axis of FOV.
         - settings_path: Path to settings.yaml file. If None, will only consider function call settings. Default: None.
-        - fov: Name of the Field of View to work on if a specific shall be selected, otherwise set it to None.
+        - fov: Name of the Field of View to work on, if only one exists set it to None. This code is not suited to run
+          on several FOVs, nor is it able to stitch FOVs into one image. Therefore, an already stitched image is required,
+          which is here called a (stitched) FOV.
         - channels: List of channels to focus analysis on, e.g. [0,1,2] if the 4th channel is a nuclei channel.
           To use all channels, set to None. Default: [0,1,2,3].
         - rounds: List of rounds to focus analysis on, e.g. [1,2,3,4]. To use all rounds, set to None.
