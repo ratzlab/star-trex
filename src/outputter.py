@@ -17,6 +17,7 @@ def seurat_outputter(gem_nested, work_dir):
     '''
     #Extract cells and gene names
     cells = list(set(gem_nested.index.get_level_values(level=0).tolist()))
+    cell_names = ["cell_" + str(i) for i in cells]
     features = list(set(gem_nested.index.get_level_values(level=1).tolist()))
     #Create empty matrix to be filled with expression values
     gem_np = np.zeros((len(cells), len(features)))
@@ -31,9 +32,11 @@ def seurat_outputter(gem_nested, work_dir):
     os.makedirs(os.path.join(work_dir, "output", "filtered_features_bc_matrices"), exist_ok=True)
 
     #create df gene expression matrix from cells, genes and expression values
-    pd.DataFrame(cells, columns=["cells"]).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "barcodes.tsv"), sep = "\t", header = False, index = False)
-    pd.DataFrame(features, columns=["feautures"]).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "features.tsv"), sep = "\t", header = False, index = False)
-    pd.DataFrame(gem_np, index = cells, columns = features).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "matrix.mtx"), sep = "\t", header = False, index = False)
+    #pd.DataFrame(cell_names, columns=["cells"]).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "barcodes.tsv"), sep = "\t", header = False, index = False)
+    #pd.DataFrame(features, columns=["feautures"]).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "features.tsv"), sep = "\t", header = False, index = False)
+    #pd.DataFrame(gem_np, index = cell_names, columns = features).to_csv(os.path.join(work_dir, "output", "filtered_features_bc_matrices", "matrix.mtx"), sep = "\t", header = False, index = False)
+
+    pd.DataFrame(gem_np.transpose(), index=features, columns=cell_names).to_csv(os.path.join(work_dir, "output", "seurat_matrix.mtx"), sep = "\t", header = True, index = True)
 
     #create metadata table
     #since the gem table has a nested index of "cells" and for each cell "genes" and each cell has only one metadata row,
@@ -41,7 +44,7 @@ def seurat_outputter(gem_nested, work_dir):
     jump = len(set(gem_nested.index.get_level_values('genes')))
     meta = gem_nested[["x", "y", "z", "xc", "yc", "zc", "area", "number_of_undecoded_spots"]].iloc[::jump]
     #Then we use the cellIDs as index for the metadata
-    meta.index = cells
+    meta.index = cell_names
     meta.to_csv(os.path.join(work_dir, "output", "metadata.tsv"), sep = "\t", header = True, index = True)
 
 
